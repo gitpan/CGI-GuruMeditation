@@ -1,0 +1,5 @@
+MANIFEST
+README
+Makefile.PL
+GuruMeditation.pm
+META.yml                                 Module meta-data (added by MakeMaker)
