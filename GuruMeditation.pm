@@ -26,7 +26,7 @@ require 5.006;
 use strict;
 use IO::File;
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 my $name;
 
 sub import {
@@ -38,6 +38,9 @@ sub import {
     #   setup termination handler
     $SIG{__DIE__} = sub {
         my ($msg) = @_;
+
+        #   make sure we are not called multiple times
+        $SIG{__DIE__} = 'IGNORE';
 
         #   determine optional hint message
         my $hint = '';
@@ -178,14 +181,15 @@ B<CGI::GuruMeditation> -- Guru Meditation for CGIs
 
 =head1 DESCRIPTION
 
-This is a small module accompanying the B<CGI> module, allowing the
-display of an error screen (somewhat resembling the "Guru Meditation"
-from the good old AmigaOS) in case of abnormal termination of a CGI.
-The module simply installs a C<$SIG{__DIE__}> handler which sends a
-HTTP response to F<STDOUT> showing a HTML/CSS based screen which the
-Perl error message and optionally an excerpt from CGI's source code
-where the error occurred. This provides both optically more pleasant and
-functionally more elaborate error messages for CGIs.
+This is a small module accompanying the B<CGI> module, allowing
+the display of an error screen (somewhat resembling the classical
+red-on-black blinking "Guru Meditation" from the good old AmigaOS before
+version 2.04) in case of abnormal termination of a CGI. The module
+simply installs a C<$SIG{__DIE__}> handler which sends a HTTP response
+to F<STDOUT> showing a HTML/CSS based screen with the Perl error message
+and optionally an excerpt from CGI's source code where the error
+occurred. This provides both optically more pleasant and functionally
+more elaborate error messages for CGIs.
 
 =head1 HISTORY
 
@@ -196,6 +200,12 @@ enough for other CGIs.
 =head1 AUTHOR
 
 Ralf S. Engelschall E<lt>rse@engelschall.comE<gt>
+
+=head1 SEE ALSO
+
+B<CGI>, B<CGI::Carp>.
+
+http://en.wikipedia.org/wiki/Guru_meditation
 
 =cut
 
