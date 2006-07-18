@@ -1,5 +1,5 @@
 MANIFEST
 README
+META.yml
 Makefile.PL
 GuruMeditation.pm
-META.yml                                 Module meta-data (added by MakeMaker)
