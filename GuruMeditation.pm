@@ -26,7 +26,7 @@ require 5.006;
 use strict;
 use IO::File;
 
-our $VERSION = '1.00';
+our $VERSION = '1.10';
 
 our $option  = { -name => "", -debug => 0 };
 
@@ -54,6 +54,18 @@ sub import {
     #   setup termination handler
     $SIG{__DIE__} = sub {
         my ($msg) = @_;
+
+        #   determine stack backtrace
+        my $bt = [];
+        if ($option->{-debug}) {
+            for (my $i = 0; $i < 100; $i++) {
+                my $caller = {}; @${caller}{qw(
+                    -package -filename -line -subroutine -hasargs
+                    -wantarray -evaltext -is_require -hints -bitmask
+                )} = caller($i) or last;
+                push(@{$bt}, $caller);
+            }
+        }
 
         #   fetch options from external variable
         my $option = $CGI::GuruMeditation::option;
@@ -127,7 +139,7 @@ sub import {
             $sig .= "<b>" . &escape_html($option->{-name}) . "</b>";
         }
         else {
-            $sig .= ($ENV{'SCRIPT_NAME'} || "Unknown CGI");
+            $sig .= ($ENV{'SCRIPT_NAME'} || $0);
         }
         $sig .= " running under ";
         if (exists($ENV{'SERVER_ADMIN'}) and $ENV{'SERVER_ADMIN'} =~ m/^.+\@.+$/) {
@@ -147,15 +159,29 @@ sub import {
         #   determine optional debug information
         my $debug = '';
         if ($option->{-debug}) {
-            #   determine run-time error message
-            $msg = &escape_html($msg);
+            #   determine stack backtrace
+            my $backtrace = '';
+            foreach my $frame (@{$bt}) {
+                my $subroutine = &escape_html($frame->{-subroutine});
+                $subroutine = "" if ($subroutine =~ m/^CGI::GuruMeditation::/);
+                $subroutine = "sub <span class=\"hi\">$subroutine</span>" if ($subroutine);
+                $backtrace .= sprintf(
+                    "package <span class=\"hi\">%s</span> " .
+                    "file <span class=\"hi\">%s</span> " .
+                    "line <span class=\"hi\">%d</span> " .
+                    "%s\n",
+                    &escape_html($frame->{-package}), &escape_html($frame->{-filename}),
+                    &escape_html($frame->{-line}), $subroutine
+                );
+            }
 
             #   determine source-code excerpt
             my $excerpt = '';
-            if ($msg =~ m|line\s+(\d+)|) {
-                my $line = $1;
+            if ($msg =~ m|\s+at\s+(.+)\s+line\s+(\d+)|) {
+                my $file = $1;
+                my $line = $2;
                 my @code = ();
-                my $io = new IO::File "<$0";
+                my $io = new IO::File "<$file";
                 if (defined($io)) {
                     @code = $io->getlines();
                     $io->close();
@@ -183,13 +209,22 @@ sub import {
                 $val =~ s/\r/<span class="escaped">\\r<\/span>/sg;
                 $val =~ s/\t/<span class="escaped">\\t<\/span>/sg;
                 $val =~ s/([^[:print:]])/sprintf("<span class=\"escaped\">\\x%02X<\/span>", ord($1))/sge;
-                $env .= sprintf("%s=\"%s\"\n", escape_html($var), $val);
+                $env .= sprintf("%s=\"<span class=\"hi\">%s</span>\"\n", escape_html($var), $val);
             }
+
+            #   determine run-time error message
+            $msg = &escape_html($msg);
+            $msg =~ s;^(.+)(\s+at\s+)(.+?)(\s+line\s+)(.+?)(\.?\r?\n?)$;
+                "<span class=\"hi\">$1</span>$2<span class=\"hi\">$3</span>$4<span class=\"hi\">$5</span>$6"
+            ;se;
 
             $debug = qq{
                 <p/>
                 <span class="debug">Perl Run-Time Error:</span><br/>
                 <pre class="debug">$msg</pre>
+                <p/>
+                <span class="debug">Perl Run-Time Stack Backtrace:</span><br/>
+                <pre class="debug">$backtrace</pre>
                 <p/>
                 <span class="debug">Perl Source-Code Excerpt:</span><br/>
                 <pre class="debug">$excerpt</pre>
@@ -263,16 +298,20 @@ sub import {
                   }
                   PRE.debug {
                     color:            #f0f0f0;
+                    padding:          0px 0px 0px 20px;
+                  }
+                  PRE.debug SPAN.hi {
+                    color:            #ffcc99;
                   }
                   PRE.debug SPAN.marker {
                     border:           1px solid #ff0000;
-                    padding:          1px 1px 1px 1px;
-                    color:            #ffffff;
-                    font-weight:      bold;
+                    padding:          1px 2px 1px 2px;
+                    color:            #ffcc99;
                   }
                   PRE.debug SPAN.escaped {
-                    color:            #ffffff;
-                    background-color: #333333;
+                    color:            #000000;
+                    background-color: #cc9966;
+                    padding:          0px 1px 0px 1px;
                     font-weight:      bold;
                   }
                 </style>
@@ -428,7 +467,8 @@ This small module actually was a quick hack and proof of concept during
 the development of B<OSSP quos> in 2004. It was later found useful and reusable
 enough for other CGIs and encapsulated into a stand-alone module. It was
 worked-off in July 2006 to support Apache/mod_perl, configuration options, debug
-information, etc.
+information, etc. In September 2006 run-time stack backtrace information was
+added and the visual appearance further improved.
 
 =head1 AUTHOR
 
